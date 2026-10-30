@@ -108,10 +108,11 @@ public final class TestRunner {
                 public char symbol() { return '?'; }
                 public SurfaceEffect surfaceEffect() { throw new AssertionError("Летающий прочитал поверхность"); }
             };
+            WorldMap map = new WorldMap(new Terrain[][]{{explosive, explosive}});
             GameCharacter pegasus = actor(Species.PEGASUS); pegasus.setMovementMode(MovementMode.FLY);
-            pegasus.moveTo(pair(explosive), target);
+            pegasus.moveTo(map, target);
             GameCharacter orc = actor(Species.ORC);
-            Party party = new Party(List.of(orc), 50); party.castFlight(pair(explosive)); party.moveTo(pair(explosive), target);
+            Party party = new Party(List.of(orc), 50); party.castFlight(map); party.moveTo(map, target);
         });
         test("Орк не может летать без магии", () ->
                 fails(IllegalArgumentException.class, () -> actor(Species.ORC).setMovementMode(MovementMode.FLY)));
@@ -152,8 +153,44 @@ public final class TestRunner {
         test("Нельзя начать ходить над пропастью", () -> {
             GameCharacter actor = actor(Species.PEGASUS); WorldMap map = WorldMap.fromRows(".X.");
             actor.setMovementMode(MovementMode.FLY); actor.moveTo(map, target); actor.setMovementMode(MovementMode.WALK);
+            Snapshot before = Snapshot.of(actor);
             fails(IllegalStateException.class, () -> actor.moveTo(map, new Position(2, 0)));
+            check(before.equals(Snapshot.of(actor)), "Отказ изменил состояние персонажа");
         });
+        test("WalkingStrategy сама запрещает ходьбу с непроходимой поверхности", () -> {
+            MovementRequest request = new MovementRequest(
+                    Species.PEGASUS, TerrainType.CHASM, TerrainType.PLAIN, WorldMap.CELL_METERS);
+            fails(IllegalStateException.class, () -> new WalkingStrategy().plan(request));
+        });
+        test("Ходьба учитывает эффекты только клетки назначения", () -> {
+            GameCharacter orc = actor(Species.ORC);
+            WorldMap map = new WorldMap(new Terrain[][]{{TerrainType.LAVA, TerrainType.PLAIN}});
+            MoveResult result = orc.moveTo(map, target);
+            near(result.seconds(), 4); near(result.staminaSpent(), 6);
+            check(orc.health() == 70 && result.healthChange() == 0, "Применён эффект исходной клетки");
+        });
+        test("Естественный полёт может начинаться над пропастью", () -> {
+            GameCharacter pegasus = actor(Species.PEGASUS);
+            pegasus.setMovementMode(MovementMode.FLY);
+            WorldMap map = new WorldMap(new Terrain[][]{{TerrainType.CHASM, TerrainType.LAVA}});
+            MoveResult result = pegasus.moveTo(map, target);
+            near(result.seconds(), 10 / Species.PEGASUS.flyingSpeed());
+            near(result.staminaSpent(), Species.PEGASUS.flyingCost());
+            check(pegasus.health() == 70 && result.surfaceIgnored(), "Наземные ограничения при полёте");
+        });
+        test("Магический полёт может начинаться над пропастью", () -> {
+            GameCharacter orc = actor(Species.ORC);
+            Party party = new Party(List.of(orc), 50);
+            WorldMap map = new WorldMap(new Terrain[][]{{TerrainType.CHASM, TerrainType.LAVA}});
+            party.castFlight(map);
+            party.moveTo(map, target);
+            check(orc.position().equals(target) && orc.health() == 70, "Наземные ограничения при магии");
+            near(orc.stamina(), 99);
+            check(party.mana() == 38 && party.isFlying(), "Изменены правила магии");
+        });
+        test("MovementRequest требует исходную поверхность", () ->
+                fails(NullPointerException.class, () -> new MovementRequest(
+                        Species.ORC, null, TerrainType.PLAIN, WorldMap.CELL_METERS)));
         test("Заклинание восстанавливает прежние, а не стандартные режимы", () -> {
             GameCharacter pegasus = actor(Species.PEGASUS); pegasus.setMovementMode(MovementMode.FLY);
             GameCharacter orc = actor(Species.ORC), harpy = actor(Species.HARPY);

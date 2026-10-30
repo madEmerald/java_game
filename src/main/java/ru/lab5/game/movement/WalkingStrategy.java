@@ -8,6 +8,9 @@ public final class WalkingStrategy implements MovementStrategy {
     @Override public MovementPlan plan(MovementRequest request) {
         if (!request.species().supports(mode()))
             throw new IllegalStateException("Этот вид не умеет ходить");
+        // После полёта нельзя начать ходьбу с непроходимой поверхности.
+        if (!request.sourceTerrain().surfaceEffect().walkable())
+            throw new IllegalStateException("Нельзя начать ходьбу над пропастью; продолжайте полёт");
         SurfaceEffect effect = request.terrain().surfaceEffect();
         if (!effect.walkable())
             throw new IllegalStateException("Пеший проход невозможен: " + request.terrain().displayName());

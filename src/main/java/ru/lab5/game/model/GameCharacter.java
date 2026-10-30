@@ -65,10 +65,8 @@ public final class GameCharacter {
     MovementPlan prepareMove(WorldMap map, Position target) {
         if (!isAlive()) throw new IllegalStateException(name + ": персонаж погиб");
         Terrain terrain = Objects.requireNonNull(map, "map").destination(position, target);
-        // После обычного полёта нужно сначала приземлиться на проходимой клетке.
-        if (strategy.mode() == MovementMode.WALK && !map.terrainAt(position).surfaceEffect().walkable())
-            throw new IllegalStateException("Нельзя начать ходьбу над пропастью; продолжайте полёт");
-        MovementPlan plan = strategy.plan(new MovementRequest(species, terrain, WorldMap.CELL_METERS));
+        MovementPlan plan = strategy.plan(new MovementRequest(
+                species, map.terrainAt(position), terrain, WorldMap.CELL_METERS));
         if (stamina < plan.staminaCost()) throw new IllegalStateException(name + ": недостаточно сил");
         return plan;
     }
