@@ -1,0 +1,23 @@
+digraph UML {
+  graph [rankdir=TB, bgcolor="white", pad="0.2", nodesep="0.45", ranksep="0.65"];
+  node [shape=record, fontname="DejaVu Sans", fontsize=11, color="#42566b", fillcolor="#edf3f8", style=filled, margin="0.12,0.08"];
+  edge [fontname="DejaVu Sans", fontsize=9, color="#52667b"];
+  context [label="{GameCharacter (Context)|- strategy: MovementStrategy\l- health, stamina, position\l|+ setMovementMode(mode)\l+ moveTo(map, target)\l}"];
+  strategy [label="{«interface» MovementStrategy|+ mode()\l+ plan(request): MovementPlan\l}", fillcolor="#ddede4"];
+  walk [label="{WalkingStrategy|Учитывает SurfaceEffect\l}"];
+  fly [label="{FlyingStrategy|Не читает SurfaceEffect\l}"];
+  magic [label="{MagicFlightStrategy|Не читает SurfaceEffect\l}"];
+  party [label="{Party|members: List(GameCharacter)\lmana, previousStrategies\l|+ castFlight(map)\l+ moveTo(map, target)\l+ endFlight(map)\l}", fillcolor="#f3ead7"];
+  terrain [label="{«interface» Terrain|+ surfaceEffect(): SurfaceEffect\l+ displayName()\l}"];
+  map [label="{WorldMap|cells: Terrain[][]\l|+ destination(from, to)\l}"];
+  plan [label="{MovementPlan|seconds, staminaCost\lhealthDelta, surfaceIgnored\l}"];
+  context -> strategy [arrowtail=diamond, dir=both, arrowhead=none, label="  делегирует"];
+  walk -> strategy [arrowhead=empty];
+  fly -> strategy [arrowhead=empty];
+  magic -> strategy [arrowhead=empty];
+  party -> context [arrowtail=odiamond, dir=both, arrowhead=none, label="  1..*"];
+  party -> magic [style=dashed, label="подменяет стратегию"];
+  walk -> terrain [style=dashed, label="читает эффект"];
+  map -> terrain [arrowtail=diamond, dir=both, arrowhead=none];
+  strategy -> plan [style=dashed, label="создаёт"];
+}
